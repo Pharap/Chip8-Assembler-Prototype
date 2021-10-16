@@ -18,7 +18,7 @@ As this is technically assembly, instructions are line-terminated rather than se
 
 ### Labels
 
-````
+```
 ':'name':'
 ```
 
@@ -32,7 +32,7 @@ JP start
 
 ### Directives
 
-#### `ascii`
+#### ascii
 
 ```
 'ascii' [name] string
@@ -51,7 +51,7 @@ LD V0 [I]
 
 You'll have to implement printing manually though.
 
-#### `data`
+#### data
 
 ```
 'data' [name] '{' {byte} '}'
@@ -65,7 +65,7 @@ Note: You can `JP` into a `data` block, but not `CALL` or `SYS` into one.
 
 `byte`s may be an integer or a `#` followed by two hexadecimal digits.
 
-#### `system`
+#### system
 
 ```
 'system' name address
@@ -75,7 +75,7 @@ Declares a system routine. Most Chip-8 emulators don't support the `SYS` instruc
 
 `address`es may be an integer or a `#` followed by three hexadecimal digits.
 
-#### `macro`
+#### macro
 
 ```
 'macro' name '{' {statement} '}'
@@ -97,7 +97,7 @@ macro swap_v0_vf
 }
 ```
 
-#### `expand`
+#### expand
 
 ```
 'expand' name
@@ -110,7 +110,7 @@ Example:
 expand swap_v0_vf
 ```
 
-#### `block`
+#### block
 
 ```
 'block' [name] '{' {statement} '}'
@@ -121,7 +121,7 @@ Strictly speaking the label is positional so the terminating semicolon doesn't r
 
 The name is optional so the block can be used as a statement grouping construct without needing to provide a name.
 
-#### `function`
+#### function
 
 ```
 'function' name '{' {statement} '}'
