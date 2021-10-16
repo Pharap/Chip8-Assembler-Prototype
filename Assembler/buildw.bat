@@ -1,0 +1,1 @@
+@ghc -Wmissing-signatures -Wincomplete-patterns -Wunused-imports Main
