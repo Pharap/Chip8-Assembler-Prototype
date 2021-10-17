@@ -130,3 +130,12 @@ The name is optional so the block can be used as a statement grouping construct 
 Functions are similar to blocks, but the label can only be branched to with `CALL` and a `RET` is automatically inserted at the end. (If you manually add one to the end, you'll end up with two. No dead code elimination here, this is assembly.)
 
 Note that it's still possible to jump into a function by simply declaring a normal label at the start of the function because preventing that was more effort I couldn't be bothered to spend.
+
+#### loop
+
+```
+'loop' '{' {statement} '}'
+```
+
+Loops are much like blocks, but a jump is automatically inserted at the end of the block of statements.
+Loops are infinite, so they need to be broken out of with an explicit jump.
