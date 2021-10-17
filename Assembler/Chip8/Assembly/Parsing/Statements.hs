@@ -29,6 +29,7 @@ module Chip8.Assembly.Parsing.Statements (statements) where
             asciiStatement,
             dataStatement,
             blockStatement,
+            loopStatement,
             labelStatement,
             instructionStatement
         ]
@@ -128,6 +129,22 @@ module Chip8.Assembly.Parsing.Statements (statements) where
         optionalLinespace
         char '}'
         return $ BlockDefinition l s
+        where
+            statements' :: Stream s m Char => ParsecT s u m [Statement]
+            statements' =
+                liftM catMaybes $
+                sepBy (optionMaybe nestedStatement) (optionalSpace >> endOfLine)
+
+    loopStatement :: Stream s m Char => ParsecT s u m Statement
+    loopStatement = do
+        string "loop"
+        optionalLinespace
+        char '{'
+        optionalLinespace
+        s <- statements'
+        optionalLinespace
+        char '}'
+        return $ LoopDefinition s
         where
             statements' :: Stream s m Char => ParsecT s u m [Statement]
             statements' =

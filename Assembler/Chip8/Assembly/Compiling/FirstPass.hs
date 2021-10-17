@@ -1,7 +1,7 @@
 module Chip8.Assembly.Compiling.FirstPass (firstPass) where
 
     import Chip8.Assembly.Language
-    import Chip8.Assembly.Compiling.State as CState
+    import Chip8.Assembly.Compiling.State
 
     firstPass :: [Statement] -> Action
     firstPass statements =
@@ -31,6 +31,9 @@ module Chip8.Assembly.Compiling.FirstPass (firstPass) where
             BlockDefinition identifier statements ->
                 processBlock identifier statements
 
+            LoopDefinition statements ->
+                processLoop statements
+
             ExpandStatement identifier ->
                 processExpand identifier
 
@@ -40,8 +43,7 @@ module Chip8.Assembly.Compiling.FirstPass (firstPass) where
 
     processLabel :: Identifier -> Action
     processLabel identifier = do
-        address <- getAddress
-        addLabel identifier (Label address)
+        addFixup identifier
 
     processSystem :: Identifier -> Address -> Action
     processSystem identifier address =
@@ -49,11 +51,7 @@ module Chip8.Assembly.Compiling.FirstPass (firstPass) where
 
     processData :: Maybe Identifier -> Bytes -> Action
     processData identifier bytes =
-        case identifier of
-            Nothing -> return ()
-            Just identifier' -> do
-                address <- getAddress
-                addLabel identifier' (Data address)
+        maybe (return ()) addFixup identifier
 
     processMacro :: Identifier -> Statements -> Action
     processMacro identifier statements =
@@ -61,17 +59,16 @@ module Chip8.Assembly.Compiling.FirstPass (firstPass) where
 
     processFunction :: Identifier -> Statements -> Action
     processFunction identifier statements = do
-        address <- getAddress
-        addLabel identifier (Function address)
+        addFixup identifier
         sequence_ $ map processStatement statements
 
     processBlock :: Maybe Identifier -> Statements -> Action
     processBlock identifier statements = do
-        case identifier of
-            Nothing -> return ()
-            Just identifier' -> do
-                address <- getAddress
-                addLabel identifier' (Label address)
+        maybe (return ()) addFixup identifier
+        sequence_ $ map processStatement statements
+
+    processLoop :: Statements -> Action
+    processLoop statements =
         sequence_ $ map processStatement statements
 
     processExpand :: Identifier -> Action

@@ -1,7 +1,7 @@
 module Chip8.Assembly.Compiling.SecondPass (secondPass) where
 
     import Chip8.Assembly.Language
-    import Chip8.Assembly.Compiling.State as CState
+    import Chip8.Assembly.Compiling.State
     import Chip8.Assembly.Compiling.Instructions
     import Chip8.Assembly.Compiling.Utilities
 
@@ -32,6 +32,9 @@ module Chip8.Assembly.Compiling.SecondPass (secondPass) where
 
             BlockDefinition identifier statements ->
                 processBlock identifier statements
+
+            LoopDefinition statements ->
+                processLoop statements
 
             ExpandStatement identifier ->
                 processExpand identifier
@@ -76,8 +79,9 @@ module Chip8.Assembly.Compiling.SecondPass (secondPass) where
             LoadRegistersMemory register -> processLoadRegistersMemory register
 
     processLabel :: Identifier -> Action
-    processLabel identifier =
-        return ()
+    processLabel identifier = do
+        address <- getAddress
+        fixupLabel identifier (Label address)
 
     processSystem :: Identifier -> Address -> Action
     processSystem identifier address =
@@ -85,6 +89,11 @@ module Chip8.Assembly.Compiling.SecondPass (secondPass) where
 
     processData :: Maybe Identifier -> Bytes -> Action
     processData identifier bytes = do
+        case identifier of
+            Nothing -> return ()
+            Just identifier -> do
+                address <- getAddress
+                fixupLabel identifier (Data address)
         sequence_ $ map writeByte bytes
 
     processMacro :: Identifier -> Statements -> Action
@@ -93,12 +102,28 @@ module Chip8.Assembly.Compiling.SecondPass (secondPass) where
 
     processFunction :: Identifier -> Statements -> Action
     processFunction identifier statements = do
+        address <- getAddress
+        fixupLabel identifier (Function address)
         sequence_ $ map processStatement statements
         processInstruction Return
 
     processBlock :: Maybe Identifier -> Statements -> Action
     processBlock identifier statements = do
+        case identifier of
+            Nothing -> return ()
+            Just identifier -> do
+                address <- getAddress
+                fixupLabel identifier (Label address)
         sequence_ $ map processStatement statements
+
+    processLoop :: Statements -> Action
+    processLoop statements = do
+        address <- getAddress
+
+        sequence_ $ map processStatement statements
+
+        loopLabel <- generateLabelFor (Label address)
+        processInstruction (Jump loopLabel)
 
     processExpand :: Identifier -> Action
     processExpand label = do

@@ -3,8 +3,9 @@ module Chip8.Assembly.Compiling.State.State where
     import Chip8.Assembly.Language
     import Chip8.Assembly.Compiling.State.Diagnostics
 
-    import Data.Maybe
     import Data.Ix
+    import Data.Bits
+    import Data.Maybe
     import Data.Map as Map
     import Data.ByteString.Builder
 
@@ -19,21 +20,28 @@ module Chip8.Assembly.Compiling.State.State where
 
     type Labels = Map Identifier Target
 
+    type Fixup = (Address, (Target -> Action))
+
+    type Fixups = Map Identifier [Fixup]
+
     data CompilationState
         = CompilationState {
             memory :: Memory,
             labels :: Labels,
+            fixups :: Fixups,
             address :: Address,
+            labelId :: Int,
             diagnostics :: Diagnostics
         }
-        deriving (Eq, Show)
 
     standardState :: CompilationState
     standardState =
         CompilationState {
             memory = Map.empty,
             labels = Map.empty,
+            fixups = Map.empty,
             address = Address 0x200,
+            labelId = 0,
             diagnostics = []
         }
 
@@ -72,28 +80,6 @@ module Chip8.Assembly.Compiling.State.State where
         addDiagnostic $ Information message
 
     --
-    -- address
-    --
-
-    getAddress :: Query Address
-    getAddress =
-        liftM address get
-
-    setAddress :: Address -> Action
-    setAddress newAddress =
-        modify $ \state ->
-            state { address = newAddress }
-
-    modifyAddress :: (Address -> Address) -> Action
-    modifyAddress f =
-        modify $ \state ->
-            state { address = f (address state) }
-
-    advanceAddress :: Int -> Action
-    advanceAddress amount =
-        modifyAddress $ offsetBy amount
-
-    --
     -- labels
     --
 
@@ -128,6 +114,114 @@ module Chip8.Assembly.Compiling.State.State where
         exists <- labelExists label
         when exists (addError $ concat ["Label overwritten: ", show label])
         addLabelUnsafe label target
+
+    deleteLabel :: Identifier -> Action
+    deleteLabel label =
+        modifyLabels (Map.delete label)
+
+    generateLabel :: Query Identifier
+    generateLabel = do
+        current <- gets labelId
+        modify $ \state ->
+            state { labelId = (current + 1) }
+        return $ Identifier $ '@':(show current)
+
+    generateLabelFor :: Target -> Query Identifier
+    generateLabelFor target = do
+        label <- generateLabel
+        addLabel label target
+        return label
+
+    fixupLabel :: Identifier -> Target -> Action
+    fixupLabel label target = do
+        addLabel label target
+        maybeFixups <- lookupFixup label
+        case maybeFixups of
+            Nothing ->
+                return()
+
+            Just fixups ->
+                sequence_ $ Prelude.map f fixups
+        where
+            f :: Fixup -> Action
+            f (address, action) =
+                runAtAddress address (action target)
+
+    --
+    -- fixups
+    --
+
+    getFixups :: Query Fixups
+    getFixups =
+        gets fixups
+
+    setFixups :: Fixups -> Action
+    setFixups newFixups =
+        modify $ \state ->
+            state { fixups = newFixups }
+
+    modifyFixups :: (Fixups -> Fixups) -> Action
+    modifyFixups f =
+        modify $ \state ->
+            state { fixups = f (fixups state) }
+
+    lookupFixup :: Identifier -> Query (Maybe [Fixup])
+    lookupFixup label =
+        gets (Map.lookup label . fixups)
+
+    fixupExists :: Identifier -> Query Bool
+    fixupExists label =
+        gets (Map.member label . fixups)
+
+    addFixup :: Identifier -> Action
+    addFixup label =
+        modifyFixups $ Map.alter update' label
+        where
+            update' :: Maybe [a] -> Maybe [a]
+            update' = maybe (Just []) Just
+
+    subscribeFixup :: Identifier -> Fixup -> Action
+    subscribeFixup label fixup = do
+        fixups <- lookupFixup label
+        case fixups of
+            Nothing ->
+                modifyFixups $ insert label [fixup]
+
+            Just existing ->
+                modifyFixups $ insert label (fixup:existing)
+
+    deleteFixup :: Identifier -> Action
+    deleteFixup label =
+        modifyFixups (Map.delete label)
+
+    --
+    -- address
+    --
+
+    getAddress :: Query Address
+    getAddress =
+        liftM address get
+
+    setAddress :: Address -> Action
+    setAddress newAddress =
+        modify $ \state ->
+            state { address = newAddress }
+
+    modifyAddress :: (Address -> Address) -> Action
+    modifyAddress f =
+        modify $ \state ->
+            state { address = f (address state) }
+
+    advanceAddress :: Int -> Action
+    advanceAddress amount =
+        modifyAddress $ offsetBy amount
+
+    runAtAddress :: Address -> Action -> Action
+    runAtAddress address action = do
+        current <- getAddress
+        setAddress address
+        action
+        setAddress current
 
     --
     -- memory

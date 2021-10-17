@@ -14,6 +14,7 @@ module Chip8.Assembly.Language.Primary where
         | MacroDefinition Identifier Statements
         | FunctionDefinition Identifier Statements
         | BlockDefinition (Maybe Identifier) Statements
+        | LoopDefinition Statements
         | ExpandStatement Identifier
         deriving (Eq, Ord, Show)
 
@@ -27,6 +28,15 @@ module Chip8.Assembly.Language.Primary where
         | Macro Statements
         deriving (Eq, Ord, Show)
 
+    nameOf :: Target -> String
+    nameOf target =
+        case target of
+            Label _ -> "label"
+            System _ -> "system function"
+            Function _ -> "function"
+            Data _ -> "data"
+            Macro _ -> "macro"
+
     addressOf :: Target -> Address
     addressOf target =
         case target of
@@ -36,11 +46,11 @@ module Chip8.Assembly.Language.Primary where
             Data address -> address
             Macro _ -> error "Macros do not have addresses"
 
-    nameOf :: Target -> String
-    nameOf target =
+    maybeAddressOf :: Target -> Maybe Address
+    maybeAddressOf target =
         case target of
-            Label _ -> "label"
-            System _ -> "system function"
-            Function _ -> "function"
-            Data _ -> "data"
-            Macro _ -> "macro"
+            Label address -> Just address
+            System address -> Just address
+            Function address -> Just address
+            Data address -> Just address
+            Macro _ -> Nothing

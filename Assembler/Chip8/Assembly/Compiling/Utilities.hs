@@ -1,7 +1,7 @@
 module Chip8.Assembly.Compiling.Utilities where
 
     import Chip8.Assembly.Language
-    import Chip8.Assembly.Compiling.State as CState
+    import Chip8.Assembly.Compiling.State
 
     import Data.Word
     import Data.Bits
@@ -20,7 +20,7 @@ module Chip8.Assembly.Compiling.Utilities where
     writeLabelInstruction opcode label = do
         maybeTarget <- lookupLabel label
         case maybeTarget of
-            Nothing ->
+            Nothing -> do
                 addError $ "Undefined label: " ++ show label
 
             Just target ->
@@ -61,8 +61,11 @@ module Chip8.Assembly.Compiling.Utilities where
     processTargetedInstruction label continuation = do
         maybeTarget <- lookupLabel label
         case maybeTarget of
-            Nothing ->
-                addError $ "Undefined label: " ++ show label
+            Nothing -> do
+                address <- getAddress
+                subscribeFixup label (address, continuation)
+                -- Skip the word that would have been written to avoid an overwrite warning
+                advanceAddress 2
 
             Just target ->
                 continuation target

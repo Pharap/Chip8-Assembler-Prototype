@@ -14,12 +14,13 @@ macro swap_v0_vf
 	XOR V0 VF
 }
 
+macro target_storage { LD I storage }
 macro save_all_registers { LD [I] VF }
 macro restore_all_registers { LD VF [I] }
 
 block entry
 {
-	LD I storage
+	expand target_storage
 	expand save_all_registers
 
 	LD V0 65
@@ -28,7 +29,7 @@ block entry
 	LD V2 15
 	DRW V1 V2 5
 
-	LD I storage
+	expand target_storage
 	expand restore_all_registers
 
 	SYS exit
